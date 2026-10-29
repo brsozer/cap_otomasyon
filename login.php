@@ -69,15 +69,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
             <button type="submit" class="btn btn-primary w-100 fw-bold">Sisteme Giriş Yap</button>
         </form>
-
-        <div class="alert alert-secondary mt-4 mb-0 p-3 small">
-            <div class="fw-bold mb-1">Ara Sınav Değerlendirme Test Hesapları (Şifre: 123456):</div>
-            • <b>Koordinatör:</b> <code>koordinator@selcuk.edu.tr</code><br>
-            • <b>ÇAP Öğrencisi:</b> <code>203311041</code><br>
-            • <b>YDP Öğrencisi:</b> <code>223301099</code><br>
-            • <b>Bölüm Başkanı:</b> <code>bolumbaskani@selcuk.edu.tr</code><br>
-            • <b>Öğrenci İşleri:</b> <code>ogrenciisleri@selcuk.edu.tr</code>
-        </div>
     </div>
 </div>
 </body>
