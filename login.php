@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?= csrf_input() ?>
             <div class="mb-3">
                 <label class="form-label small fw-bold">Kurumsal E-posta veya Öğrenci No</label>
-                <input type="text" name="identifier" class="form-control" placeholder="Örn: 203311041 veya koordinator@selcuk.edu.tr" required>
+                <input type="text" name="identifier" class="form-control" placeholder="Örn: 20xxxxxxxx@ogr.selcuk.edu.tr" required>
             </div>
             <div class="mb-3">
                 <label class="form-label small fw-bold">Şifre</label>
