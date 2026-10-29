@@ -65,6 +65,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             "Ders/Not kaydı güncellendi. Gerekçe: $gerekce", $eski, $_POST);
         $msg = "Kayıt güncellendi ve denetim günlüğüne işlendi.";
     }
+    // Mesajı / Talebi Silme
+    if ($action === 'mesaj_sil') {
+        $msg_id = (int)$_POST['msg_id'];
+        
+        // Ekli dosya varsa sunucudan da kaldıralım
+        $mStmt = $db->prepare("SELECT ekli_dosya_yolu FROM messages WHERE id = ? AND student_id = ?");
+        $mStmt->execute([$msg_id, $student_id]);
+        $mKayit = $mStmt->fetch();
+        if ($mKayit && !empty($mKayit['ekli_dosya_yolu']) && file_exists($mKayit['ekli_dosya_yolu'])) {
+            @unlink($mKayit['ekli_dosya_yolu']);
+        }
+
+        $del = $db->prepare("DELETE FROM messages WHERE id = ? AND student_id = ?");
+        $del->execute([$msg_id, $student_id]);
+
+        log_islem($db, 'MESAJ_SILME', 'messages', $msg_id, "Koordinatör mesajı/belge talebini sildi.");
+        $msg = "Mesaj / Belge talebi silindi.";
+    }
+
+    // Belge Talebi Durumunu Güncelleme
+    if ($action === 'talep_durum_guncelle') {
+        $msg_id  = (int)$_POST['msg_id'];
+        $tdurum  = $_POST['talep_durumu'];
+
+        $upd = $db->prepare("UPDATE messages SET talep_durumu = ? WHERE id = ? AND student_id = ?");
+        $upd->execute([$tdurum, $msg_id, $student_id]);
+
+        log_islem($db, 'TALEP_DURUM_GUNCELLE', 'messages', $msg_id, "Belge talebi durumu '$tdurum' olarak güncellendi.");
+        $msg = "Talep durumu güncellendi.";
+    }
 
     if ($action === 'belge_karar') {
         $doc_id = (int)$_POST['doc_id'];
@@ -429,19 +459,46 @@ require_once '../includes/header.php';
 
                 <?php foreach ($mesaj_listesi as $m): ?>
                     <div class="p-2 mb-2 rounded bg-light border">
-                        <div class="d-flex justify-content-between">
+                        <div class="d-flex justify-content-between align-items-center">
                             <strong><?= e($m['ad_soyad']) ?> — <?= e($m['konu']) ?></strong>
-                            <span class="text-muted"><?= e($m['gonderim_tarihi']) ?></span>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="text-muted small"><?= e($m['gonderim_tarihi']) ?></span>
+                                <!-- Mesajı / Talebi Sil Butonu -->
+                                <form method="POST" onsubmit="return confirm('Bu mesajı/talebi silmek istediğinize emin misiniz?');" class="d-inline">
+                                    <?= csrf_input() ?>
+                                    <input type="hidden" name="action" value="mesaj_sil">
+                                    <input type="hidden" name="msg_id" value="<?= $m['id'] ?>">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1" title="Sil"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </div>
                         </div>
-                        <div><?= e($m['mesaj']) ?></div>
+                        <div class="mt-1"><?= e($m['mesaj']) ?></div>
+                        
                         <?php if ($m['ekli_dosya_yolu']): ?>
                             <a href="<?= e($m['ekli_dosya_yolu']) ?>" target="_blank" class="btn btn-sm btn-outline-secondary mt-1"><i class="bi bi-paperclip"></i> Ekli Dosya</a>
                         <?php endif; ?>
+                        
                         <?php if ($m['belge_talebi_mi']): ?>
-                            <span class="badge bg-warning text-dark mt-1">Belge Talebi Durumu: <?= strtoupper(e($m['talep_durumu'])) ?></span>
+                            <div class="mt-2 pt-2 border-top d-flex justify-content-between align-items-center">
+                                <span class="badge bg-warning text-dark">Talep Durumu: <?= strtoupper(e($m['talep_durumu'])) ?></span>
+                                
+                                <!-- Hızlı Durum Değiştirme Formu -->
+                                <form method="POST" class="d-flex align-items-center gap-1">
+                                    <?= csrf_input() ?>
+                                    <input type="hidden" name="action" value="talep_durum_guncelle">
+                                    <input type="hidden" name="msg_id" value="<?= $m['id'] ?>">
+                                    <select name="talep_durumu" class="form-select form-select-sm" style="font-size: 11px; height: 28px; width: 130px;">
+                                        <option value="bekliyor" <?= $m['talep_durumu']==='bekliyor'?'selected':'' ?>>Bekliyor</option>
+                                        <option value="iptal" <?= $m['talep_durumu']==='iptal'?'selected':'' ?>>İptal Edildi</option>
+                                        <option value="tamamlandi" <?= $m['talep_durumu']==='tamamlandi'?'selected':'' ?>>Tamamlandı</option>
+                                    </select>
+                                    <button type="submit" class="btn btn-dark btn-sm py-0 px-2" style="font-size: 11px; height: 28px;">Güncelle</button>
+                                </form>
+                            </div>
                         <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
+
             </div>
         </div>
     </div>
