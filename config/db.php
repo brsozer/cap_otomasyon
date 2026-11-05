@@ -5,13 +5,13 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Çevre değişkenlerini iptal ettik, bilgileri doğrudan giriyoruz.
-$host     = 'BURAYA_TCP_PROXY_HOST_YAZILACAK'; // Örn: viaduct.proxy.rlwy.net
-$port     = 'BURAYA_TCP_PROXY_PORT_YAZILACAK'; // Örn: 12345 (Standart 3306 DEĞİLDİR)
+$host     = getenv('MYSQLHOST') ?: 'roundhouse.proxy.rlwy.net'; // Railway'in vereceği veya verdiği host.
+$port     = getenv('MYSQLPORT') ?: '3306'; // Railway portu.
 $dbname   = 'railway';
 $username = 'root';
-$password = 'TtLSRZbEVXUusmaXOdzhHlnkgwdKxbgXI'; 
+$password = 'TtLSRZbEVXUusmaXOdzhHlnkgwdKxbgXI';
 
+// 1. Aşama Bağlantı Denemesi
 try {
     $db = new PDO("mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4", $username, $password, [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
@@ -19,5 +19,5 @@ try {
         PDO::ATTR_EMULATE_PREPARES   => false,
     ]);
 } catch (PDOException $e) {
-    die("Bağlantı Hatası: " . $e->getMessage());
+    die("Bağlantı Hatası: " . $e->getMessage() . " | Host: " . $host . " | User: " . $username);
 }
