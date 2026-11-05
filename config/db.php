@@ -5,11 +5,12 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$host     = getenv('MYSQLHOST') ?: getenv('DB_HOST');
-$port     = getenv('MYSQLPORT') ?: getenv('DB_PORT');
-$dbname   = getenv('MYSQL_DATABASE') ?: getenv('DB_NAME');
-$username = getenv('MYSQLUSER') ?: getenv('DB_USER');
-$password = getenv('MYSQL_ROOT_PASSWORD') ?: getenv('MYSQL_PASSWORD');
+// Çevre değişkenlerini iptal ettik, bilgileri doğrudan giriyoruz.
+$host     = 'BURAYA_TCP_PROXY_HOST_YAZILACAK'; // Örn: viaduct.proxy.rlwy.net
+$port     = 'BURAYA_TCP_PROXY_PORT_YAZILACAK'; // Örn: 12345 (Standart 3306 DEĞİLDİR)
+$dbname   = 'railway';
+$username = 'root';
+$password = 'TtLSRZbEVXUusmaXOdzhHlnkgwdKxbgXI'; 
 
 try {
     $db = new PDO("mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4", $username, $password, [
