@@ -5,11 +5,11 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$host     = 'BURADAYI_RAILWAY_VERDIGI_HOST'; // Örn: autorack.proxy.rlwy.net
-$port     = 'BURADAYI_VERDIGI_PORT';         // Örn: 12345 (Portu da yazmayı unutma!)
+$host     = '${{RAILWAY_PRIVATE_DOMAIN}}'; // Örn: autorack.proxy.rlwy.net
+$port     = '3306';         // Örn: 12345 (Portu da yazmayı unutma!)
 $dbname   = 'railway';
 $username = 'root';
-$password = 'TtLSRZbEVXUusmaXOdzhHlnkgwdKxbgXI'; // Senin şifren
+$password = 'TtLSRZbEVXUusmaXOdzHlnkgwdKxbgXl'; // Senin şifren
 
 try {
     $db = new PDO("mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4", $username, $password, [
