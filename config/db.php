@@ -6,7 +6,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 $host     = getenv('MYSQLHOST') ?: 'roundhouse.proxy.rlwy.net'; // Railway'in vereceği veya verdiği host.
-$port     = getenv('MYSQLPORT') ?: '3306'; // Railway portu.
+$port     = getenv('MYSQLPORT') ?: '45678'; // Railway portu.
 $dbname   = 'railway';
 $username = 'root';
 $password = 'TtLSRZbEVXUusmaXOdzhHlnkgwdKxbgXI';
