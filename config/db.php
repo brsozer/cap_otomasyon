@@ -7,7 +7,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 
 $host     = 'mysql.railway.internal'; 
-$port     = '3306';       
+$port     = ':3306';       
 $dbname   = 'railway';
 $username = 'root';
 $password = 'hAqBMmQQGNBJMYiTqWRXotmWcPekjwLx'; 
