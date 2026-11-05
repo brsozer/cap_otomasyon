@@ -5,19 +5,20 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$host     = getenv('MYSQLHOST') ?: 'roundhouse.proxy.rlwy.net'; // Railway'in vereceği veya verdiği host.
-$port     = getenv('MYSQLPORT') ?: '45678'; // Railway portu.
+
+$host     = 'mysql.railway.internal'; 
+$port     = '3306';       
 $dbname   = 'railway';
 $username = 'root';
-$password = 'TtLSRZbEVXUusmaXOdzhHlnkgwdKxbgXI';
+$password = 'hAqBMmQQGNBJMYiTqWRXotmWcPekjwLx'; 
 
-// 1. Aşama Bağlantı Denemesi
 try {
     $db = new PDO("mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4", $username, $password, [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES   => false,
+        PDO::ATTR_TIMEOUT            => 5 
     ]);
 } catch (PDOException $e) {
-    die("Bağlantı Hatası: " . $e->getMessage() . " | Host: " . $host . " | User: " . $username);
+    die("Veritabanı bağlantı hatası: " . $e->getMessage());
 }
