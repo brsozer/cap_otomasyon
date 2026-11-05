@@ -9,7 +9,7 @@ $host     = 'acela.proxy.rlwy.net';
 $port     = '57474';         
 $dbname   = 'railway';
 $username = 'root';
-$password = 'hAqBMmQQGNBJMYiTqWRXotmWcPekjwLx';
+$password = 'hAqBMmQQGNBJMYiTqWRXotmWcPekjwLx'; 
 
 try {
     $db = new PDO("mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4", $username, $password, [
