@@ -23,14 +23,12 @@ try {
     die("Veritabanı bağlantı hatası: " . $e->getMessage());
 }
 
-// Güvenli çıktı fonksiyonu
 if (!function_exists('e')) {
     function e($string) {
         return htmlspecialchars((string)$string, ENT_QUOTES, 'UTF-8');
     }
 }
 
-// CSRF fonksiyonları
 if (!function_exists('csrf_token')) {
     function csrf_token() {
         if (empty($_SESSION['csrf_token'])) {
@@ -46,6 +44,16 @@ if (!function_exists('csrf_input')) {
     }
 }
 
+if (!function_verify_exists = null) {
+    function verify_csrf($token = null) {
+        $submitted = $token ?? ($_POST['csrf_token'] ?? '');
+        if (!empty($_SESSION['csrf_token']) && !empty($submitted)) {
+            return hash_equals($_SESSION['csrf_token'], (string)$submitted);
+        }
+        return false;
+    }
+}
+
 if (!function_exists('verify_csrf')) {
     function verify_csrf($token = null) {
         $submitted = $token ?? ($_POST['csrf_token'] ?? '');
@@ -56,19 +64,23 @@ if (!function_exists('verify_csrf')) {
     }
 }
 
-// LOG fonksiyonu
+// Güvenli Log İşlem Fonksiyonu (Dizi parametrelerini stringe çevirerek çakışmaları önler)
 if (!function_exists('log_islem')) {
     function log_islem($db, $islem_turu, $tablo_adi = null, $kayit_id = null, $aciklama = null, $eski_deger = null, $yeni_deger = null) {
         try {
             $uid = $_SESSION['user_id'] ?? $_SESSION['id'] ?? null;
             $ip  = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+
+            if (is_array($eski_deger)) { $eski_deger = json_encode($eski_deger, JSON_UNESCAPED_UNICODE); }
+            if (is_array($yeni_deger)) { $yeni_deger = json_encode($yeni_deger, JSON_UNESCAPED_UNICODE); }
+            if (is_array($aciklama))   { $aciklama   = json_encode($aciklama, JSON_UNESCAPED_UNICODE); }
+
             $stmt = $db->prepare("INSERT INTO audit_logs (user_id, islem_turu, tablo_adi, kayit_id, eski_deger, yeni_deger, aciklama, ip_adresi) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([$uid, $islem_turu, $tablo_adi, $kayit_id, $eski_deger, $yeni_deger, $aciklama, $ip]);
         } catch (PDOException $ex) {}
     }
 }
 
-// Öğrenci kurallarını ve uyarılarını dinamik hesaplayan fonksiyon
 if (!function_exists('degerlendir_ogrenci_kurallari')) {
     function degerlendir_ogrenci_kurallari($db, $student_id) {
         $sonuc = [
@@ -78,11 +90,10 @@ if (!function_exists('degerlendir_ogrenci_kurallari')) {
             'bolum_ortalamasi' => 0.00,
             'durum'            => 'Uygun',
             'mesaj'            => 'Akademik durum hesaplanıyor.',
-            'uyarilar'         => [] // <-- Hatanın kökenini çözen eksiksiz dizi tanımı
+            'uyarilar'         => []
         ];
 
         try {
-            // Tamamlanan AKTS'leri veritabanından hesapla
             $stmt = $db->prepare("
                 SELECT SUM(COALESCE(sc.akts, cc.akts, 0)) as toplam 
                 FROM student_courses sc 
@@ -97,7 +108,6 @@ if (!function_exists('degerlendir_ogrenci_kurallari')) {
 
             $sonuc['kalan_akts'] = max(0, $sonuc['hedef_akts'] - $sonuc['tamamlanan_akts']);
 
-            // Ortalama hesapla
             $stmt2 = $db->prepare("
                 SELECT AVG(sayisal_ortalama) as ort 
                 FROM student_courses 
@@ -108,9 +118,7 @@ if (!function_exists('degerlendir_ogrenci_kurallari')) {
             if ($row2 && isset($row2['ort'])) {
                 $sonuc['bolum_ortalamasi'] = round((float)$row2['ort'], 2);
             }
-        } catch (Exception $e) {
-            // Hata durumunda varsayılanlar geçerli kalır
-        }
+        } catch (Exception $e) {}
 
         return $sonuc;
     }
