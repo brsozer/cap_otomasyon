@@ -72,7 +72,7 @@ if (!function_exists('log_islem')) {
 }
 
 if (!function_exists('degerlendir_ogrenci_kurallari')) {
-    function degerlendir_ogrenci_kurallari($db, $student_id) {
+    function degerlendir_ogrenci_kurallari($db, $student_arg) {
         $sonuc = [
             'tamamlanan_akts'  => 0,
             'hedef_akts'       => 135,
@@ -84,12 +84,17 @@ if (!function_exists('degerlendir_ogrenci_kurallari')) {
         ];
 
         try {
-            // Öğrencinin program türünü ve anadal GANO'sunu çek
-            $stStmt = $db->prepare("SELECT * FROM students WHERE id = ?");
-            $stStmt->execute([$student_id]);
-            $stData = $stStmt->fetch();
+            $stData = null;
+            if (is_array($student_arg)) {
+                $stData = $student_arg;
+            } else {
+                $stStmt = $db->prepare("SELECT * FROM students WHERE id = ?");
+                $stStmt->execute([$student_arg]);
+                $stData = $stStmt->fetch();
+            }
 
             if ($stData) {
+                $student_id = $stData['id'] ?? null;
                 $gano = (float)($stData['anadal_gano'] ?? 0);
                 $prog = strtoupper($stData['program_turu'] ?? 'CAP');
 
@@ -122,33 +127,35 @@ if (!function_exists('degerlendir_ogrenci_kurallari')) {
                         ];
                     }
                 }
-            }
 
-            // Tamamlanan AKTS'leri veritabanından hesapla
-            $stmt = $db->prepare("
-                SELECT SUM(COALESCE(sc.akts, cc.akts, 0)) as toplam 
-                FROM student_courses sc 
-                LEFT JOIN course_catalog cc ON sc.course_id = cc.id 
-                WHERE sc.student_id = ? AND (sc.durum = 'Geçti' OR sc.durum = 'GEÇTİ' OR sc.onay_durumu = 'Onaylı' OR sc.harf_notu IN ('AA','BA','BB','CB','CC'))
-            ");
-            $stmt->execute([$student_id]);
-            $row = $stmt->fetch();
-            if ($row && isset($row['toplam'])) {
-                $sonuc['tamamlanan_akts'] = (int)$row['toplam'];
-            }
+                if ($student_id) {
+                    // Tamamlanan AKTS'leri veritabanından hesapla
+                    $stmt = $db->prepare("
+                        SELECT SUM(COALESCE(sc.akts, cc.akts, 0)) as toplam 
+                        FROM student_courses sc 
+                        LEFT JOIN course_catalog cc ON sc.course_id = cc.id 
+                        WHERE sc.student_id = ? AND (sc.durum = 'Geçti' OR sc.durum = 'GEÇTİ' OR sc.onay_durumu = 'Onaylı' OR sc.harf_notu IN ('AA','BA','BB','CB','CC'))
+                    ");
+                    $stmt->execute([$student_id]);
+                    $row = $stmt->fetch();
+                    if ($row && isset($row['toplam'])) {
+                        $sonuc['tamamlanan_akts'] = (int)$row['toplam'];
+                    }
 
-            $sonuc['kalan_akts'] = max(0, $sonuc['hedef_akts'] - $sonuc['tamamlanan_akts']);
+                    $sonuc['kalan_akts'] = max(0, $sonuc['hedef_akts'] - $sonuc['tamamlanan_akts']);
 
-            // Bölüm ortalamasını hesapla
-            $stmt2 = $db->prepare("
-                SELECT AVG(sayisal_ortalama) as ort 
-                FROM student_courses 
-                WHERE student_id = ? AND sayisal_ortalama > 0
-            ");
-            $stmt2->execute([$student_id]);
-            $row2 = $stmt2->fetch();
-            if ($row2 && isset($row2['ort'])) {
-                $sonuc['bolum_ortalamasi'] = round((float)$row2['ort'], 2);
+                    // Bölüm ortalamasını hesapla
+                    $stmt2 = $db->prepare("
+                        SELECT AVG(sayisal_ortalama) as ort 
+                        FROM student_courses 
+                        WHERE student_id = ? AND sayisal_ortalama > 0
+                    ");
+                    $stmt2->execute([$student_id]);
+                    $row2 = $stmt2->fetch();
+                    if ($row2 && isset($row2['ort'])) {
+                        $sonuc['bolum_ortalamasi'] = round((float)$row2['ort'], 2);
+                    }
+                }
             }
         } catch (Exception $e) {}
 
