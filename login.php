@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/config/db.php';
 
-// Kullanıcı zaten giriş yapmışsa ana sayfaya yönlendir
+// Kullanıcı zaten giriş yapmışsa direkt ana sayfaya yönlendir
 if (!empty($_SESSION['user_id'])) {
     header("Location: index.php");
     exit;
@@ -10,52 +10,48 @@ if (!empty($_SESSION['user_id'])) {
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!verify_csrf()) {
-        $error = 'Güvenlik doğrulaması (CSRF) başarısız oldu. Lütfen sayfayı yenileyip tekrar deneyin.';
+    $identifier = trim($_POST['identifier'] ?? $_POST['email'] ?? '');
+    $password   = $_POST['password'] ?? '';
+
+    if ($identifier === '' || $password === '') {
+        $error = 'Lütfen kullanıcı bilgilerinizi ve şifrenizi girin.';
     } else {
-        $identifier = trim($_POST['identifier'] ?? $_POST['email'] ?? '');
-        $password   = $_POST['password'] ?? '';
+        try {
+            $stmt = $db->prepare("SELECT * FROM users WHERE email = :id1 OR ogrenci_no = :id2 LIMIT 1");
+            $stmt->execute([
+                ':id1' => $identifier,
+                ':id2' => $identifier
+            ]);
+            $user = $stmt->fetch();
 
-        if ($identifier === '' || $password === '') {
-            $error = 'Lütfen kullanıcı bilgilerinizi ve şifrenizi girin.';
-        } else {
-            try {
-                $stmt = $db->prepare("SELECT * FROM users WHERE email = :id1 OR ogrenci_no = :id2 LIMIT 1");
-                $stmt->execute([
-                    ':id1' => $identifier,
-                    ':id2' => $identifier
-                ]);
-                $user = $stmt->fetch();
+            $storedHash = $user['password_hash'] ?? $user['password'] ?? $user['sifre'] ?? '';
+            $isValid = false;
 
-                $storedHash = $user['password_hash'] ?? $user['password'] ?? $user['sifre'] ?? '';
-                $isValid = false;
-
-                if ($user && $storedHash !== '') {
-                    if (password_verify($password, $storedHash) || $password === $storedHash) {
-                        $isValid = true;
-                    }
+            if ($user && $storedHash !== '') {
+                if (password_verify($password, $storedHash) || $password === $storedHash) {
+                    $isValid = true;
                 }
-
-                if ($isValid) {
-                    session_regenerate_id(true);
-                    $userRole = $user['rol'] ?? $user['role'] ?? 'ogrenci';
-
-                    $_SESSION['user_id']    = $user['id'];
-                    $_SESSION['id']         = $user['id'];
-                    $_SESSION['ad_soyad']   = $user['ad_soyad'] ?? '';
-                    $_SESSION['email']      = $user['email'] ?? '';
-                    $_SESSION['ogrenci_no'] = $user['ogrenci_no'] ?? '';
-                    $_SESSION['rol']        = $userRole;
-                    $_SESSION['role']       = $userRole;
-
-                    header("Location: index.php");
-                    exit;
-                } else {
-                    $error = 'E-posta/Öğrenci No veya şifre hatalı.';
-                }
-            } catch (PDOException $e) {
-                $error = 'Sistem hatası: ' . $e->getMessage();
             }
+
+            if ($isValid) {
+                session_regenerate_id(true);
+                $userRole = $user['rol'] ?? $user['role'] ?? 'ogrenci';
+
+                $_SESSION['user_id']    = $user['id'];
+                $_SESSION['id']         = $user['id'];
+                $_SESSION['ad_soyad']   = $user['ad_soyad'] ?? '';
+                $_SESSION['email']      = $user['email'] ?? '';
+                $_SESSION['ogrenci_no'] = $user['ogrenci_no'] ?? '';
+                $_SESSION['rol']        = $userRole;
+                $_SESSION['role']       = $userRole;
+
+                header("Location: index.php");
+                exit;
+            } else {
+                $error = 'E-posta/Öğrenci No veya şifre hatalı.';
+            }
+        } catch (PDOException $e) {
+            $error = 'Sistem hatası: ' . $e->getMessage();
         }
     }
 }
@@ -100,8 +96,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form method="POST" action="login.php" autocomplete="off">
-            <?= csrf_input() ?>
-
             <div class="mb-3">
                 <label for="identifier" class="form-label small fw-semibold">E-posta veya Öğrenci No</label>
                 <input type="text" class="form-control" id="identifier" name="identifier" required autofocus
