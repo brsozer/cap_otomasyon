@@ -18,7 +18,6 @@ try {
         PDO::ATTR_EMULATE_PREPARES   => false,
         PDO::ATTR_TIMEOUT            => 5
     ]);
-    $pdo = $db;
 } catch (PDOException $e) {
     die("Veritabanı bağlantı hatası: " . $e->getMessage());
 }
@@ -26,15 +25,5 @@ try {
 if (!function_exists('e')) {
     function e($string) {
         return htmlspecialchars((string)$string, ENT_QUOTES, 'UTF-8');
-    }
-}
-
-// ogrenci/index.php dosyasının aradığı orijinal fonksiyon
-if (!function_exists('degerlendir_ogrenci_kurallari')) {
-    function degerlendir_ogrenci_kurallari($db, $student_id) {
-        return [
-            'durum' => 'Uygun',
-            'mesaj' => 'Kurallar sağlanıyor.'
-        ];
     }
 }
