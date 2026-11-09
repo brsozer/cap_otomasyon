@@ -44,16 +44,6 @@ if (!function_exists('csrf_input')) {
     }
 }
 
-if (!function_verify_exists = null) {
-    function verify_csrf($token = null) {
-        $submitted = $token ?? ($_POST['csrf_token'] ?? '');
-        if (!empty($_SESSION['csrf_token']) && !empty($submitted)) {
-            return hash_equals($_SESSION['csrf_token'], (string)$submitted);
-        }
-        return false;
-    }
-}
-
 if (!function_exists('verify_csrf')) {
     function verify_csrf($token = null) {
         $submitted = $token ?? ($_POST['csrf_token'] ?? '');
