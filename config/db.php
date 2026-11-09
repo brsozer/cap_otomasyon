@@ -102,45 +102,29 @@ if (!function_exists('degerlendir_ogrenci_kurallari')) {
             }
         }
 
+        // Koordinatörün yönerge ayarlarından son belirlediği dinamik kuralları çek
+        $kurallar = [];
         try {
-            // Koordinatörün veritabanında (Yönerge Ayarları) o an belirlediği güncel eşiği dinamik çek
-            $asgariGano = 2.72; // Veritabanı boş dönerse güvenlik amaçlı fallback
-            if ($prog === 'CAP') {
-                $kQuery = $db->query("SELECT deger FROM regulation_rules WHERE kural_kodu = 'CAP_MIN_ANADAL_GANO' AND is_active = 1 LIMIT 1");
-                if ($kQuery) {
-                    $val = $kQuery->fetchColumn();
-                    if ($val !== false) { $asgariGano = (float)$val; }
-                }
-
-                if ($gano < $asgariGano) {
-                    $sonuc['durum'] = 'Uygun Değil';
-                    $sonuc['mesaj'] = 'Anadal GANO Asgari Eşiğin Altında!';
-                    $sonuc['uyarilar'][] = [
-                        'tip' => 'danger',
-                        'mesaj' => "Dikkat: Anadal GANO'su ($gano), koordinatörün belirlediği yönerge eşiği olan $asgariGano değerinin altında!"
-                    ];
-                }
-            } elseif ($prog === 'YDP') {
-                $kQuery = $db->query("SELECT deger FROM regulation_rules WHERE kural_kodu = 'YDP_MIN_ANADAL_GANO' AND is_active = 1 LIMIT 1");
-                if ($kQuery) {
-                    $val = $kQuery->fetchColumn();
-                    if ($val !== false) { $asgariGano = (float)$val; }
-                }
-
-                if ($gano < $asgariGano) {
-                    $sonuc['durum'] = 'Uygun Değil';
-                    $sonuc['mesaj'] = 'Anadal GANO Asgari Eşiğin Altında!';
-                    $sonuc['uyarilar'][] = [
-                        'tip' => 'danger',
-                        'mesaj' => "Dikkat: Yandal Anadal GANO'su ($gano), koordinatörün belirlediği yönerge eşiği olan $asgariGano değerinin altında!"
-                    ];
+            $kQuery = $db->query("SELECT kural_kodu, deger FROM regulation_rules WHERE is_active = 1 ORDER BY id DESC");
+            if ($kQuery) {
+                while ($row = $kQuery->fetch()) {
+                    if (!isset($kurallar[$row['kural_kodu']])) {
+                        $kurallar[$row['kural_kodu']] = (float)$row['deger'];
+                    }
                 }
             }
         } catch (Exception $e) {}
 
-        // AKTS ve Ortalama hesaplamaları
-        try {
-            if ($student_id) {
+        // Hedef AKTS'yi veritabanındaki güncel kurala göre dinamik ata
+        if ($prog === 'CAP') {
+            $sonuc['hedef_akts'] = (int)($kurallar['CAP_PROTOKOL_TOPLAM_AKTS'] ?? 135);
+        } elseif ($prog === 'YDP') {
+            $sonuc['hedef_akts'] = (int)($kurallar['YDP_MIN_AKTS'] ?? 30);
+        }
+
+        // Öğrencinin tamamlanan ders kredilerini hesapla
+        if ($student_id) {
+            try {
                 $stmt = $db->prepare("
                     SELECT SUM(COALESCE(sc.akts, cc.akts, 0)) as toplam 
                     FROM student_courses sc 
@@ -165,8 +149,31 @@ if (!function_exists('degerlendir_ogrenci_kurallari')) {
                 if ($row2 && isset($row2['ort'])) {
                     $sonuc['bolum_ortalamasi'] = round((float)$row2['ort'], 2);
                 }
+            } catch (Exception $e) {}
+        }
+
+        // GANO eşik kontrolü (Koordinatörün son güncellediği değere göre dinamik kıyaslar)
+        if ($prog === 'CAP') {
+            $asgariGano = $kurallar['CAP_MIN_ANADAL_GANO'] ?? 2.72;
+            if ($gano < $asgariGano) {
+                $sonuc['durum'] = 'Uygun Değil';
+                $sonuc['mesaj'] = 'Anadal GANO Asgari Eşiğin Altında!';
+                $sonuc['uyarilar'][] = [
+                    'tip' => 'danger',
+                    'mesaj' => "Dikkat: Anadal GANO'su ($gano), koordinatörün belirlediği $asgariGano eşiğinin altında!"
+                ];
             }
-        } catch (Exception $e) {}
+        } elseif ($prog === 'YDP') {
+            $asgariGano = $kurallar['YDP_MIN_ANADAL_GANO'] ?? 2.30;
+            if ($gano < $asgariGano) {
+                $sonuc['durum'] = 'Uygun Değil';
+                $sonuc['mesaj'] = 'Anadal GANO Asgari Eşiğin Altında!';
+                $sonuc['uyarilar'][] = [
+                    'tip' => 'danger',
+                    'mesaj' => "Dikkat: Yandal Anadal GANO'su ($gano), koordinatörün belirlediği $asgariGano eşiğinin altında!"
+                ];
+            }
+        }
 
         return $sonuc;
     }
