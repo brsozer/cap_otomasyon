@@ -87,26 +87,7 @@ require_once '../includes/header.php';
                             <small class="text-danger">Kalan: <?= $analiz['kalan_akts'] ?> AKTS</small> | <small class="text-muted">Ort: <?= $analiz['bolum_ortalamasi'] ?></small>
                         </td>
                         <td style="max-width: 260px;">
-                            <?php 
-                                // Doğrudan öğrencinin GANO'su ile veritabanındaki CAP eşiğini anlık karşılaştır
-                                $anadal_gano = (float)$o['anadal_gano'];
-                                $limit_sorgu = $db->query("SELECT deger FROM yonerge_kurallari WHERE kural_kodu = 'CAP_MIN_ANADAL_GANO' LIMIT 1");
-                                $limit_deger = $limit_sorgu ? (float)$limit_sorgu->fetchColumn() : 2.72;
-                                if ($limit_deger <= 0) $limit_deger = 2.72;
-
-                                $uyari_var = false;
-                                if (strtoupper($o['program_turu']) === 'CAP' && $anadal_gano < $limit_deger) {
-                                    $uyari_var = true;
-                                }
-                            ?>
-
-                            <?php if ($uyari_var): ?>
-                                <span class="badge bg-danger text-wrap text-start mb-1 d-block">
-                                    Dikkat: Anadal GANO'su (<?= $anadal_gano ?>), yönerge eşiği olan <?= $limit_deger ?> değerinin altında!
-                                </span>
-                            <?php endif; ?>
-
-                            <?php if (empty($analiz['uyarilar']) && !$uyari_var): ?>
+                            <?php if (empty($analiz['uyarilar'])): ?>
                                 <span class="badge bg-light text-success border border-success">Yönergeye Uygun</span>
                             <?php else: foreach ($analiz['uyarilar'] as $u): ?>
                                 <div class="badge bg-<?= $u['tip'] ?> text-wrap text-start mb-1 d-block"><?= e($u['mesaj']) ?></div>
