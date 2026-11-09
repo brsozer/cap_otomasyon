@@ -21,3 +21,9 @@ try {
 } catch (PDOException $e) {
     die("Veritabanı bağlantı hatası: " . $e->getMessage());
 }
+
+if (!function_exists('e')) {
+    function e($string) {
+        return htmlspecialchars((string)$string, ENT_QUOTES, 'UTF-8');
+    }
+}
