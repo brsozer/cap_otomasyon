@@ -87,11 +87,17 @@ require_once '../includes/header.php';
                             <small class="text-danger">Kalan: <?= $analiz['kalan_akts'] ?> AKTS</small> | <small class="text-muted">Ort: <?= $analiz['bolum_ortalamasi'] ?></small>
                         </td>
                         <td style="max-width: 260px;">
-                            <?php if (empty($analiz['uyarilar'])): ?>
-                                <span class="badge bg-light text-success border border-success">Yönergeye Uygun</span>
-                            <?php else: foreach ($analiz['uyarilar'] as $u): ?>
-                                <div class="badge bg-<?= $u['tip'] ?> text-wrap text-start mb-1 d-block"><?= e($u['mesaj']) ?></div>
-                            <?php endforeach; endif; ?>
+                            <?php if (isset($analiz['durum']) && $analiz['durum'] === 'Uygun Değil'): ?>
+                                <span class="badge bg-danger text-white mb-1 d-block text-start">Uygun Değil</span>
+                            <?php else: ?>
+                                <span class="badge bg-light text-success border border-success mb-1 d-block text-start">Yönergeye Uygun</span>
+                            <?php endif; ?>
+
+                            <?php if (!empty($analiz['uyarilar'])): ?>
+                                <?php foreach ($analiz['uyarilar'] as $u): ?>
+                                    <div class="badge bg-<?= $u['tip'] ?> text-wrap text-start mb-1 d-block"><?= e($u['mesaj']) ?></div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </td>
                         <td><span class="badge bg-dark"><?= strtoupper(e($o['durum'])) ?></span></td>
                         <td class="text-end">
