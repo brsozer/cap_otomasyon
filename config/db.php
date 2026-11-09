@@ -12,8 +12,10 @@ if (!headers_sent()) {
 }
 
 $host     = 'acela.proxy.rlwy.net';
-$port     = '57474';$dbname   = 'railway';
-$username = 'root';$password = 'hAqBMmQQGNBJMYiTqWRXotmWcPekjwLx';
+$port     = '57474';
+$dbname   = 'railway';
+$username = 'root';
+$password = 'hAqBMmQQGNBJMYiTqWRXotmWcPekjwLx';
 $dsn      = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
 
 $options = [
@@ -25,41 +27,49 @@ $options = [
 ];
 
 try {
-    $db  = new PDO($dsn,$username, $password,$options);
-    $pdo =$db;
+    $db  = new PDO($dsn, $username, $password, $options);
+    $pdo = $db;
 
     // 1. Eğer bolumbaskani hesabı yoksa database_setup.sql henüz tam çalışmamıştır, çalıştır:
     $needSetup = false;
-    $checkTable =$db->query("SHOW TABLES LIKE 'users'")->fetch();
-    if (!$checkTable) {$needSetup = true;
+    $checkTable = $db->query("SHOW TABLES LIKE 'users'")->fetch();
+    if (!$checkTable) {
+        $needSetup = true;
     } else {
         $checkAdmin = (int)$db->query("SELECT COUNT(*) FROM users WHERE email = 'bolumbaskani@selcuk.edu.tr'")->fetchColumn();
-        if ($checkAdmin === 0) {$needSetup = true;
+        if ($checkAdmin === 0) {
+            $needSetup = true;
         }
     }
 
-    if ($needSetup) {$sqlPath = __DIR__ . '/../database_setup.sql';
-        if (file_exists($sqlPath)) {$sql = file_get_contents($sqlPath);$sql = preg_replace('/CREATE\s+DATABASE[^;]*;/i', '', $sql);$sql = preg_replace('/USE\s+[^;]*;/i', '', $sql);$db->exec("SET FOREIGN_KEY_CHECKS = 0;\n" . $sql . "\nSET FOREIGN_KEY_CHECKS = 1;");
-            $db  = new PDO($dsn,$username, $password,$options);
-            $pdo =$db;
+    if ($needSetup) {
+        $sqlPath = __DIR__ . '/../database_setup.sql';
+        if (file_exists($sqlPath)) {
+            $sql = file_get_contents($sqlPath);
+            $sql = preg_replace('/CREATE\s+DATABASE[^;]*;/i', '', $sql);
+            $sql = preg_replace('/USE\s+[^;]*;/i', '', $sql);
+            $db->exec("SET FOREIGN_KEY_CHECKS = 0;\n" . $sql . "\nSET FOREIGN_KEY_CHECKS = 1;");
+            $db  = new PDO($dsn, $username, $password, $options);
+            $pdo = $db;
         }
     }
 
     // 2. 5 Test hesabının şifresini (123456) ve e-postalarını kesin olarak doğrula/onar:
-    if (empty($_SESSION['accounts_verified'])) {$validHash = password_hash('123456', PASSWORD_DEFAULT);
+    if (empty($_SESSION['accounts_verified'])) {
+        $validHash = password_hash('123456', PASSWORD_DEFAULT);
 
         // Mevcut tüm test hesaplarının şifresini geçerli 123456 hash'i ile güncelle
-        $cols =$db->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_COLUMN);
+        $cols = $db->query("SHOW COLUMNS FROM users")->fetchAll(PDO::FETCH_COLUMN);
         if (in_array('password_hash', $cols)) {
-            $stmtUpd =$db->prepare("UPDATE users SET password_hash = ? WHERE email LIKE '%@selcuk.edu.tr' OR email LIKE '%@ogr.selcuk.edu.tr'");
+            $stmtUpd = $db->prepare("UPDATE users SET password_hash = ? WHERE email LIKE '%@selcuk.edu.tr' OR email LIKE '%@ogr.selcuk.edu.tr'");
             $stmtUpd->execute([$validHash]);
         }
         if (in_array('password', $cols)) {
-            $stmtUpd2 =$db->prepare("UPDATE users SET password = ? WHERE email LIKE '%@selcuk.edu.tr' OR email LIKE '%@ogr.selcuk.edu.tr'");
+            $stmtUpd2 = $db->prepare("UPDATE users SET password = ? WHERE email LIKE '%@selcuk.edu.tr' OR email LIKE '%@ogr.selcuk.edu.tr'");
             $stmtUpd2->execute([$validHash]);
         }
         if (in_array('sifre', $cols)) {
-            $stmtUpd3 =$db->prepare("UPDATE users SET sifre = ? WHERE email LIKE '%@selcuk.edu.tr' OR email LIKE '%@ogr.selcuk.edu.tr'");
+            $stmtUpd3 = $db->prepare("UPDATE users SET sifre = ? WHERE email LIKE '%@selcuk.edu.tr' OR email LIKE '%@ogr.selcuk.edu.tr'");
             $stmtUpd3->execute([$validHash]);
         }
 
@@ -73,4 +83,44 @@ try {
     die("Veritabanı bağlantı hatası: " . $e->getMessage());
 }
 
-if
+if (!function_exists('csrf_token')) {
+    function csrf_token() {
+        if (empty($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        }
+        return $_SESSION['csrf_token'];
+    }
+}
+
+if (!function_exists('csrf_input')) {
+    function csrf_input() {
+        return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') . '">';
+    }
+}
+
+if (!function_exists('verify_csrf')) {
+    function verify_csrf($token = null) {
+        $submitted = $token ?? ($_POST['csrf_token'] ?? '');
+        if (!empty($_SESSION['csrf_token']) && !empty($submitted)) {
+            return hash_equals($_SESSION['csrf_token'], (string)$submitted);
+        }
+        return false;
+    }
+}
+
+if (!function_exists('e')) {
+    function e($string) {
+        return htmlspecialchars((string)$string, ENT_QUOTES, 'UTF-8');
+    }
+}
+
+if (!function_exists('log_islem')) {
+    function log_islem($db, $islem_turu, $tablo_adi = null, $kayit_id = null, $aciklama = null, $eski_deger = null, $yeni_deger = null) {
+        try {
+            $uid = $_SESSION['user_id'] ?? $_SESSION['id'] ?? null;
+            $ip  = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+            $stmt = $db->prepare("INSERT INTO audit_logs (user_id, islem_turu, tablo_adi, kayit_id, eski_deger, yeni_deger, aciklama, ip_adresi) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$uid, $islem_turu, $tablo_adi, $kayit_id, $eski_deger, $yeni_deger, $aciklama, $ip]);
+        } catch (PDOException $ex) {}
+    }
+}
