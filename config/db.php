@@ -88,6 +88,7 @@ if (!function_exists('degerlendir_ogrenci_kurallari')) {
             $gano = 0.0;
             $prog = 'CAP';
 
+            // Parametre ister ID (sayı) ister öğrenci dizisi gelsin, verileri güvenle çöz
             if (is_array($student_arg)) {
                 $student_id = $student_arg['id'] ?? null;
                 $gano = (float)($student_arg['anadal_gano'] ?? 0);
@@ -103,12 +104,16 @@ if (!function_exists('degerlendir_ogrenci_kurallari')) {
                 }
             }
 
+            // DÜZELTME: Tablo adı 'yonerge_kurallari' olarak düzeltildi (Eski kodda regulation_rules yazıyordu)
             $kurallar = [];
-            $kQuery = $db->query("SELECT kural_adi, deger FROM yonerge_kurallari");
-            while ($row = $kQuery->fetch()) {
-                $kurallar[$row['kural_adi']] = (float)$row['deger'];
+            $kQuery = $db->query("SELECT kural_adi, deger FROM yonerge_kurallari WHERE is_active = 1");
+            if ($kQuery) {
+                while ($row = $kQuery->fetch()) {
+                    $kurallar[$row['kural_adi']] = (float)$row['deger'];
+                }
             }
 
+            // Dinamik GANO eşik kontrolü
             if ($prog === 'CAP') {
                 $asgariGano = $kurallar['CAP Anadal Asgari Mezuniyet/Devam GANO Eşiği'] ?? 2.72;
                 if ($gano < $asgariGano) {
@@ -132,6 +137,7 @@ if (!function_exists('degerlendir_ogrenci_kurallari')) {
             }
 
             if ($student_id) {
+                // Tamamlanan AKTS'leri veritabanından hesapla
                 $stmt = $db->prepare("
                     SELECT SUM(COALESCE(sc.akts, cc.akts, 0)) as toplam 
                     FROM student_courses sc 
@@ -146,6 +152,7 @@ if (!function_exists('degerlendir_ogrenci_kurallari')) {
 
                 $sonuc['kalan_akts'] = max(0, $sonuc['hedef_akts'] - $sonuc['tamamlanan_akts']);
 
+                // Bölüm ortalamasını hesapla
                 $stmt2 = $db->prepare("
                     SELECT AVG(sayisal_ortalama) as ort 
                     FROM student_courses 
