@@ -54,7 +54,7 @@ if (!function_exists('verify_csrf')) {
     }
 }
 
-// Güvenli Log İşlem Fonksiyonu (Dizi parametrelerini stringe çevirerek çakışmaları önler)
+// Güvenli Log İşlem Fonksiyonu
 if (!function_exists('log_islem')) {
     function log_islem($db, $islem_turu, $tablo_adi = null, $kayit_id = null, $aciklama = null, $eski_deger = null, $yeni_deger = null) {
         try {
@@ -79,11 +79,52 @@ if (!function_exists('degerlendir_ogrenci_kurallari')) {
             'kalan_akts'       => 135,
             'bolum_ortalamasi' => 0.00,
             'durum'            => 'Uygun',
-            'mesaj'            => 'Akademik durum hesaplanıyor.',
+            'mesaj'            => 'Yönergeye Uygun',
             'uyarilar'         => []
         ];
 
         try {
+            // Öğrencinin program türünü ve anadal GANO'sunu çek
+            $stStmt = $db->prepare("SELECT * FROM students WHERE id = ?");
+            $stStmt->execute([$student_id]);
+            $stData = $stStmt->fetch();
+
+            if ($stData) {
+                $gano = (float)($stData['anadal_gano'] ?? 0);
+                $prog = strtoupper($stData['program_turu'] ?? 'CAP');
+
+                // Veritabanındaki yonerge_kurallari tablosundan dinamik eşikleri al
+                $kurallar = [];
+                $kQuery = $db->query("SELECT kural_adi, deger FROM yonerge_kurallari");
+                while ($row = $kQuery->fetch()) {
+                    $kurallar[$row['kural_adi']] = (float)$row['deger'];
+                }
+
+                // Dinamik GANO eşik kontrolü
+                if ($prog === 'CAP') {
+                    $asgariGano = $kurallar['CAP Anadal Asgari Mezuniyet/Devam GANO Eşiği'] ?? 2.72;
+                    if ($gano < $asgariGano) {
+                        $sonuc['durum'] = 'Uygun Değil';
+                        $sonuc['mesaj'] = 'Anadal GANO Asgari Eşiğin Altında!';
+                        $sonuc['uyarilar'][] = [
+                            'tip' => 'danger',
+                            'mesaj' => "Dikkat: Öğrencinin Anadal GANO'su ($gano), yönerge eşiği olan $asgariGano değerinin altında!"
+                        ];
+                    }
+                } elseif ($prog === 'YDP') {
+                    $asgariGano = $kurallar['Yandal Anadal Asgari Devam GANO Eşiği'] ?? 2.30;
+                    if ($gano < $asgariGano) {
+                        $sonuc['durum'] = 'Uygun Değil';
+                        $sonuc['mesaj'] = 'Anadal GANO Asgari Eşiğin Altında!';
+                        $sonuc['uyarilar'][] = [
+                            'tip' => 'danger',
+                            'mesaj' => "Dikkat: Yandal öğrencisinin Anadal GANO'su ($gano), yönerge eşiği olan $asgariGano değerinin altında!"
+                        ];
+                    }
+                }
+            }
+
+            // Tamamlanan AKTS'leri veritabanından hesapla
             $stmt = $db->prepare("
                 SELECT SUM(COALESCE(sc.akts, cc.akts, 0)) as toplam 
                 FROM student_courses sc 
@@ -98,6 +139,7 @@ if (!function_exists('degerlendir_ogrenci_kurallari')) {
 
             $sonuc['kalan_akts'] = max(0, $sonuc['hedef_akts'] - $sonuc['tamamlanan_akts']);
 
+            // Bölüm ortalamasını hesapla
             $stmt2 = $db->prepare("
                 SELECT AVG(sayisal_ortalama) as ort 
                 FROM student_courses 
