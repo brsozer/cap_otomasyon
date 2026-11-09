@@ -83,57 +83,63 @@ if (!function_exists('degerlendir_ogrenci_kurallari')) {
             'uyarilar'         => []
         ];
 
+        $student_id = null;
+        $gano = 0.0;
+        $prog = 'CAP';
+
+        if (is_array($student_arg)) {
+            $student_id = $student_arg['id'] ?? null;
+            $gano = (float)($student_arg['anadal_gano'] ?? 0);
+            $prog = strtoupper($student_arg['program_turu'] ?? 'CAP');
+        } else {
+            $student_id = $student_arg;
+            $stStmt = $db->prepare("SELECT * FROM students WHERE id = ?");
+            $stStmt->execute([$student_id]);
+            $stData = $stStmt->fetch();
+            if ($stData) {
+                $gano = (float)($stData['anadal_gano'] ?? 0);
+                $prog = strtoupper($stData['program_turu'] ?? 'CAP');
+            }
+        }
+
         try {
-            $student_id = null;
-            $gano = 0.0;
-            $prog = 'CAP';
-
-            if (is_array($student_arg)) {
-                $student_id = $student_arg['id'] ?? null;
-                $gano = (float)($student_arg['anadal_gano'] ?? 0);
-                $prog = strtoupper($student_arg['program_turu'] ?? 'CAP');
-            } else {
-                $student_id = $student_arg;
-                $stStmt = $db->prepare("SELECT * FROM students WHERE id = ?");
-                $stStmt->execute([$student_id]);
-                $stData = $stStmt->fetch();
-                if ($stData) {
-                    $gano = (float)($stData['anadal_gano'] ?? 0);
-                    $prog = strtoupper($stData['program_turu'] ?? 'CAP');
-                }
-            }
-
-            // Doğrudan veritabanındaki kural kodlarına göre eşikleri çekiyoruz
-            $kurallar = [];
-            $kQuery = $db->query("SELECT kural_kodu, deger FROM yonerge_kurallari WHERE is_active = 1");
-            if ($kQuery) {
-                while ($row = $kQuery->fetch()) {
-                    $kurallar[$row['kural_kodu']] = (float)$row['deger'];
-                }
-            }
-
+            // Koordinatörün veritabanında (Yönerge Ayarları) o an belirlediği güncel eşiği dinamik çek
+            $asgariGano = 2.72; // Veritabanı boş dönerse güvenlik amaçlı fallback
             if ($prog === 'CAP') {
-                $asgariGano = $kurallar['CAP_MIN_ANADAL_GANO'] ?? 2.72;
+                $kQuery = $db->query("SELECT deger FROM regulation_rules WHERE kural_kodu = 'CAP_MIN_ANADAL_GANO' AND is_active = 1 LIMIT 1");
+                if ($kQuery) {
+                    $val = $kQuery->fetchColumn();
+                    if ($val !== false) { $asgariGano = (float)$val; }
+                }
+
                 if ($gano < $asgariGano) {
                     $sonuc['durum'] = 'Uygun Değil';
                     $sonuc['mesaj'] = 'Anadal GANO Asgari Eşiğin Altında!';
                     $sonuc['uyarilar'][] = [
                         'tip' => 'danger',
-                        'mesaj' => "Dikkat: Öğrencinin Anadal GANO'su ($gano), yönerge eşiği olan $asgariGano değerinin altında!"
+                        'mesaj' => "Dikkat: Anadal GANO'su ($gano), koordinatörün belirlediği yönerge eşiği olan $asgariGano değerinin altında!"
                     ];
                 }
             } elseif ($prog === 'YDP') {
-                $asgariGano = $kurallar['YDP_MIN_ANADAL_GANO'] ?? 2.30;
+                $kQuery = $db->query("SELECT deger FROM regulation_rules WHERE kural_kodu = 'YDP_MIN_ANADAL_GANO' AND is_active = 1 LIMIT 1");
+                if ($kQuery) {
+                    $val = $kQuery->fetchColumn();
+                    if ($val !== false) { $asgariGano = (float)$val; }
+                }
+
                 if ($gano < $asgariGano) {
                     $sonuc['durum'] = 'Uygun Değil';
                     $sonuc['mesaj'] = 'Anadal GANO Asgari Eşiğin Altında!';
                     $sonuc['uyarilar'][] = [
                         'tip' => 'danger',
-                        'mesaj' => "Dikkat: Yandal öğrencisinin Anadal GANO'su ($gano), yönerge eşiği olan $asgariGano değerinin altında!"
+                        'mesaj' => "Dikkat: Yandal Anadal GANO'su ($gano), koordinatörün belirlediği yönerge eşiği olan $asgariGano değerinin altında!"
                     ];
                 }
             }
+        } catch (Exception $e) {}
 
+        // AKTS ve Ortalama hesaplamaları
+        try {
             if ($student_id) {
                 $stmt = $db->prepare("
                     SELECT SUM(COALESCE(sc.akts, cc.akts, 0)) as toplam 
