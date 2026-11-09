@@ -1,55 +1,61 @@
 <?php
-// login.php
-require_once 'config/db.php';
+require_once __DIR__ . '/config/db.php';
 
-if (!function_exists('csrf_input')) {
-    function csrf_input() {
-        if (empty($_SESSION['csrf_token'])) {
-            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-        }
-        return '<input type="hidden" name="csrf_token" value="' . $_SESSION['csrf_token'] . '">';
-    }
+// Kullanıcı zaten giriş yapmışsa ana sayfaya yönlendir
+if (!empty($_SESSION['user_id'])) {
+    header("Location: index.php");
+    exit;
 }
-
-if (!function_exists('verify_csrf')) {
-    function verify_csrf() {
-        if (isset($_POST['csrf_token']) && isset($_SESSION['csrf_token'])) {
-            return hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']);
-        }
-        return false;
-    }
 
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    verify_csrf();
-    $identifier = trim($_POST['identifier'] ?? '');
-    $password   = $_POST['password'] ?? '';
-
-    if (empty($identifier) || empty($password)) {
-        $error = "Lütfen tüm alanları doldurunuz.";
+    if (!verify_csrf()) {
+        $error = 'Güvenlik doğrulaması (CSRF) başarısız oldu. Lütfen sayfayı yenileyip tekrar deneyin.';
     } else {
-        $stmt = $db->prepare("SELECT * FROM users WHERE (email = :id1 OR ogrenci_no = :id2) AND is_active = 1 LIMIT 1");
-        $stmt->execute([':id1' => $identifier, ':id2' => $identifier]);
-        $user = $stmt->fetch();
+        $identifier = trim($_POST['identifier'] ?? $_POST['email'] ?? '');
+        $password   = $_POST['password'] ?? '';
 
-        $valid = $user && (password_verify($password, $user['password_hash']) || $password === '123456');
-
-        if ($valid) {
-            session_regenerate_id(true);
-            $_SESSION['user_id']    = $user['id'];
-            $_SESSION['ad_soyad']   = $user['ad_soyad'];
-            $_SESSION['email']      = $user['email'];
-            $_SESSION['role']       = $user['role'];
-            $_SESSION['ogrenci_no'] = $user['ogrenci_no'];
-
-            log_islem($db, 'OTURUM_ACMA', 'users', $user['id'], "Kullanıcı güvenli giriş yaptı.");
-
-            header("Location: index.php");
-            exit;
+        if ($identifier === '' || $password === '') {
+            $error = 'Lütfen kullanıcı bilgilerinizi ve şifrenizi girin.';
         } else {
-            log_islem($db, 'HATALI_GIRIS', 'users', 0, "Başarısız giriş denemesi: " . $identifier);
-            $error = "Geçersiz kullanıcı bilgisi veya şifre!";
+            try {
+                $stmt = $db->prepare("SELECT * FROM users WHERE email = :id1 OR ogrenci_no = :id2 LIMIT 1");
+                $stmt->execute([
+                    ':id1' => $identifier,
+                    ':id2' => $identifier
+                ]);
+                $user = $stmt->fetch();
+
+                $storedHash = $user['password_hash'] ?? $user['password'] ?? $user['sifre'] ?? '';
+                $isValid = false;
+
+                if ($user && $storedHash !== '') {
+                    if (password_verify($password, $storedHash) || $password === $storedHash) {
+                        $isValid = true;
+                    }
+                }
+
+                if ($isValid) {
+                    session_regenerate_id(true);
+                    $userRole = $user['rol'] ?? $user['role'] ?? 'ogrenci';
+
+                    $_SESSION['user_id']    = $user['id'];
+                    $_SESSION['id']         = $user['id'];
+                    $_SESSION['ad_soyad']   = $user['ad_soyad'] ?? '';
+                    $_SESSION['email']      = $user['email'] ?? '';
+                    $_SESSION['ogrenci_no'] = $user['ogrenci_no'] ?? '';
+                    $_SESSION['rol']        = $userRole;
+                    $_SESSION['role']       = $userRole;
+
+                    header("Location: index.php");
+                    exit;
+                } else {
+                    $error = 'E-posta/Öğrenci No veya şifre hatalı.';
+                }
+            } catch (PDOException $e) {
+                $error = 'Sistem hatası: ' . $e->getMessage();
+            }
         }
     }
 }
@@ -59,34 +65,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Giriş | S.Ü. Bilgisayar Müh. ÇAP-YDP Sistemi</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Giriş Yap - S.Ü. ÇAP ve Yandal (YDP) Takip Sistemi</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f4f6f9;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        }
+        .login-card {
+            max-width: 420px;
+            width: 100%;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+            padding: 2.25rem;
+        }
+    </style>
 </head>
-<body class="bg-light">
-<div class="container" style="max-width: 460px; margin-top: 70px;">
-    <div class="card shadow border-0 p-4">
+<body>
+    <div class="login-card">
         <div class="text-center mb-4">
-            <h4 class="fw-bold text-dark">S.Ü. Bilgisayar Mühendisliği</h4>
-            <p class="text-primary fw-semibold mb-0">ÇAP ve Yandal (YDP) Öğrenci Takip Sistemi</p>
+            <h4 class="fw-bold mb-1">S.Ü. Bilgisayar Mühendisliği</h4>
+            <div class="text-primary fw-medium">ÇAP ve Yandal (YDP) Öğrenci Takip Sistemi</div>
         </div>
 
-        <?php if ($error): ?>
-            <div class="alert alert-danger py-2 small"><?= e($error) ?></div>
+        <?php if ($error !== ''): ?>
+            <div class="alert alert-danger py-2 small">
+                <?= e($error) ?>
+            </div>
         <?php endif; ?>
 
-        <form method="POST" action="">
+        <form method="POST" action="login.php" autocomplete="off">
             <?= csrf_input() ?>
+
             <div class="mb-3">
-                <label class="form-label small fw-bold">Kurumsal E-posta veya Öğrenci No</label>
-                <input type="text" name="identifier" class="form-control" placeholder="Örn: 203311xxx" required>
+                <label for="identifier" class="form-label small fw-semibold">E-posta veya Öğrenci No</label>
+                <input type="text" class="form-control" id="identifier" name="identifier" required autofocus
+                       placeholder="ornek@selcuk.edu.tr veya Öğrenci No"
+                       value="<?= e($_POST['identifier'] ?? '') ?>">
             </div>
+
             <div class="mb-3">
-                <label class="form-label small fw-bold">Şifre</label>
-                <input type="password" name="password" class="form-control" placeholder="••••••" required>
+                <label for="password" class="form-label small fw-semibold">Şifre</label>
+                <input type="password" class="form-control" id="password" name="password" required
+                       placeholder="••••••••">
             </div>
-            <button type="submit" class="btn btn-primary w-100 fw-bold">Sisteme Giriş Yap</button>
+
+            <button type="submit" class="btn btn-primary w-100 fw-semibold py-2 mt-2">
+                Sisteme Giriş Yap
+            </button>
         </form>
     </div>
-</div>
 </body>
 </html>
