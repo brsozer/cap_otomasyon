@@ -4,7 +4,7 @@ require_once '../config/db.php';
 require_once '../includes/auth_check.php';
 check_access(['ogrenci']);
 
-// ogrenci/index.php dosyasının en üstüne ekle:
+//
 if (!isset($tamamlanan_akts)) $tamamlanan_akts = 0;
 if (!isset($hedef_akts)) $hedef_akts = 60;
 if (!isset($kalan_akts)) $kalan_akts = 60;
