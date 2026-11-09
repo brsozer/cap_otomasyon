@@ -11,6 +11,14 @@ if (!function_exists('csrf_input')) {
     }
 }
 
+if (!function_exists('verify_csrf')) {
+    function verify_csrf() {
+        if (isset($_POST['csrf_token']) && isset($_SESSION['csrf_token'])) {
+            return hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']);
+        }
+        return false;
+    }
+
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
