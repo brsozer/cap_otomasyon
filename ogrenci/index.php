@@ -4,6 +4,14 @@ require_once '../config/db.php';
 require_once '../includes/auth_check.php';
 check_access(['ogrenci']);
 
+// ogrenci/index.php dosyasının en üstüne ekle:
+if (!isset($tamamlanan_akts)) $tamamlanan_akts = 0;
+if (!isset($hedef_akts)) $hedef_akts = 60;
+if (!isset($kalan_akts)) $kalan_akts = 60;
+if (!isset($bolum_ortalamasi)) $bolum_ortalamasi = 0.00;
+if (!isset($uyarilar) || !is_array($uyarilar)) $uyarilar = [];
+
+
 $stmt = $db->prepare("SELECT s.*, u.ad_soyad, u.ogrenci_no FROM students s JOIN users u ON s.user_id = u.id WHERE u.id = ?");
 $stmt->execute([$_SESSION['user_id']]);
 $student = $stmt->fetch();
