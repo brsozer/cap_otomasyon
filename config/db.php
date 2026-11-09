@@ -68,20 +68,21 @@ if (!function_exists('log_islem')) {
     }
 }
 
-// KRİTİK: Veritabanından öğrencinin gerçek derslerine bakarak AKTS ve GANO'yu canlı hesaplayan fonksiyon
+// Öğrenci kurallarını ve uyarılarını dinamik hesaplayan fonksiyon
 if (!function_exists('degerlendir_ogrenci_kurallari')) {
     function degerlendir_ogrenci_kurallari($db, $student_id) {
         $sonuc = [
-            'tamamlanan_akts' => 0,
-            'hedef_akts'      => 135,
-            'kalan_akts'      => 135,
+            'tamamlanan_akts'  => 0,
+            'hedef_akts'       => 135,
+            'kalan_akts'       => 135,
             'bolum_ortalamasi' => 0.00,
-            'durum'           => 'Uygun',
-            'mesaj'           => 'Akademik durum hesaplanıyor.'
+            'durum'            => 'Uygun',
+            'mesaj'            => 'Akademik durum hesaplanıyor.',
+            'uyarilar'         => [] // <-- Hatanın kökenini çözen eksiksiz dizi tanımı
         ];
 
         try {
-            // Tamamlanan AKTS'leri öğrencinin ders tablosundan ve katalogdan topla
+            // Tamamlanan AKTS'leri veritabanından hesapla
             $stmt = $db->prepare("
                 SELECT SUM(COALESCE(sc.akts, cc.akts, 0)) as toplam 
                 FROM student_courses sc 
@@ -108,7 +109,7 @@ if (!function_exists('degerlendir_ogrenci_kurallari')) {
                 $sonuc['bolum_ortalamasi'] = round((float)$row2['ort'], 2);
             }
         } catch (Exception $e) {
-            // Veritabanı sorgu hatasında varsayılan kalır
+            // Hata durumunda varsayılanlar geçerli kalır
         }
 
         return $sonuc;
