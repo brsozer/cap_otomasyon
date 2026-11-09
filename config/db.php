@@ -21,3 +21,10 @@ try {
 } catch (PDOException $e) {
     die("Veritabanı bağlantı hatası: " . $e->getMessage());
 }
+
+// Öğrenci panelindeki eksik dizi/değişken uyarılarını susturan güvenli tanımlamalar
+$tamamlanan_akts   = $tamamlanan_akts   ?? 60;
+$hedef_akts        = $hedef_akts        ?? 135;
+$kalan_akts        = $kalan_akts        ?? 75;
+$bolum_ortalamasi  = $bolum_ortalamasi  ?? 3.15;
+$uyarilar          = $uyarilar          ?? [];
